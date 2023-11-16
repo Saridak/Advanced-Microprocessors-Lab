@@ -1,0 +1,101 @@
+#include <avr/io.h>
+//#include <util/delay.h>
+#include <avr/interrupt.h>
+
+int x=0; //logic flag
+int t=0;
+#define T1 20
+#define T2 10
+#define T3 20
+
+int main() {
+	PORTD.DIR |= PIN1_bm; //PIN1 is output tram
+	PORTD.DIR |= PIN0_bm; //PIN0 is output pezwn
+	PORTD.DIR |= PIN2_bm; //PIN2 is output megalou dromou
+	
+	PORTD.OUTCLR = PIN2_bm; //arxika  dromou ON
+	PORTD.OUT |=PIN0_bm; //pezwn OFF
+	PORTD.OUT |=PIN1_bm; //tram OFF
+	
+	
+	
+	
+	TCA0.SPLIT.CTRLB = TCA_SPLIT_HCMP0EN_bm | TCA_SPLIT_LCMP0EN_bm; // Enable HCMP0 and LCMP0
+	TCA0.SPLIT.HCMP0 = T1; // tram
+    TCA0.SPLIT.LCMP0 = T2;  // pezous
+	TCA0.SPLIT.INTCTRL = TCA_SPLIT_HCMP0EN_bm  // Enable interrupts for HCMP0 
+	//TCA0.SPLIT.INTCTRL = TCA_SPLIT_LCMP0EN_bm;
+	TCA0.SPLIT.CTRLA |= TCA_SPLIT_ENABLE_bm; // Enable TCA0 split mode
+	sei();
+
+
+
+
+
+
+
+	
+	while(1){
+	
+		PORTF.PIN5CTRL |= PORT_PULLUPEN_bm | PORT_ISC_BOTHEDGES_gc;
+		sei(); //energopoihsh interrupts
+		
+		
+		
+	}
+
+}
+ISR(PORTF_PORT_vect){
+	//clear the interrupt flag
+	int y = PORTF.INTFLAGS;
+	PORTF.INTFLAGS=y;
+	
+	
+	if((t==0) || (x==1)){
+	
+	 
+	
+	PORTD.OUT = PIN2_bm; //  dromou OFF
+	PORTD.OUTCLR |=PIN0_bm; //pezwn ON
+	TCA0.SPLIT.INTCTRL = TCA_SPLIT_LCMP0EN_bm;
+	TCA0.SPLIT.CTRLA |= TCA_SPLIT_ENABLE_bm; // Enable TCA0 split mode
+	sei();
+	t=1;
+	}
+	
+}
+ 
+
+ISR(TCA0_HUNF_vect)
+{
+    TCA0.SPLIT.CTRLA = 0; //Disable
+   //clear flag
+    int intflags = TCA0.SPLIT.INTFLAGS;
+    TCA0.SPLIT.INTFLAGS=intflags;
+	
+	PORTD.OUTCLR |=PIN1_bm; //tram ON
+	PORTD.OUT = PIN2_bm; //  dromou OFF
+	PORTD.OUTCLR |=PIN0_bm; //pezwn ON
+	
+	TCA0.SPLIT.INTCTRL = TCA_SPLIT_LCMP0EN_bm;
+	TCA0.SPLIT.CTRLA |= TCA_SPLIT_ENABLE_bm;// Enable TCA0 split mode
+	sei(); 
+	
+	
+
+}
+
+// Low compare match 0 ISR
+ISR(TCA0_LCMP0_vect)
+{ 
+	TCA0.SPLIT.CTRLA = 0; //Disable
+    //clear flag
+    int intflags = TCA0.SPLIT.INTFLAGS;
+    TCA0.SPLIT.INTFLAGS=intflags;
+	
+	PORTD.OUTCLR = PIN2_bm; //dromou ON
+	PORTD.OUT |=PIN0_bm; //pezwn OFF
+	PORTD.OUT |=PIN1_bm; //tram OFF
+	
+	x=1;
+}

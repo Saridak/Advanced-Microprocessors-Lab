@@ -1,0 +1,155 @@
+#include <avr/io.h>
+#include <avr/interrupt.h>
+#include <util/delay.h>
+#include <stdbool.h>
+
+int x=0;
+
+int switch_count = 0;
+#define SWITCH_PIN PINF5
+
+bool led0_state = false;
+bool led1_state = false;
+
+ 
+int main() {
+	
+	PORTF.PIN5CTRL |= PORT_PULLUPEN_bm | PORT_ISC_BOTHEDGES_gc;
+	sei(); //enable interrupts
+
+	while(1){
+   
+	// Set up TCB0 for PWM generation with a 2ms period and 40% duty cycle
+  TCB0.CCMP = F_CPU * 0.002; // Set PWM period to 2ms (assuming F_CPU is the CPU frequency in Hz)
+  TCB0.CTRLB = TCB_CNTMODE_PWM8_gc | TCB_CCMPEN_bm; // Set up TCB0 for PWM generation with 8-bit resolution
+  TCB0.CCMPH = TCB0.CCMP * 0.4; // Set duty cycle to 40%
+  PORTD.DIR = PIN0_bm; //PIN0 is output
+  TCB0.INTCTRL = TCB_CAPT_bm;
+  
+  // Set up TCB1 for PWM generation with a 1ms period and 50% duty cycle
+  TCB1.CCMP = F_CPU * 0.001; // Set PWM period to 1ms (assuming F_CPU is the CPU frequency in Hz)
+  TCB1.CTRLB = TCB_CNTMODE_PWM8_gc | TCB_CCMPEN_bm; // Set up TCB1 for PWM generation with 8-bit resolution
+  TCB1.CCMPH = TCB1.CCMP / 2; // Set duty cycle to 50%
+  PORTD.DIR = PIN1_bm; //PIN1 is output
+  TCB1.INTCTRL = TCB_CAPT_bm; // enable interrupt on capture/compare
+	
+    // Enable global interrupts
+    sei();
+    
+ 
+	PORTD.DIR |= PIN2_bm; //PIN2 is output
+	ADC0.CTRLA |= ADC_RESSEL_10BIT_gc; //10-bit resolution
+    ADC0.CTRLA |= ADC_FREERUN_bm; //Free-Running mode enabled
+    ADC0.MUXPOS |= ADC_MUXPOS_AIN7_gc; //The bit //Enable Debug Mode
+    ADC0.DBGCTRL |= ADC_DBGRUN_bm; //Window Comparator Mode
+    ADC0.WINLT |= 10; //Set threshold
+    ADC0.INTCTRL |= ADC_WCMP_bm; //Enable Interrupts for WCM
+    ADC0.CTRLE |= ADC_WINCM0_bm; //Interrupt when RESULT < WINLT
+    sei();
+    ADC0.COMMAND |= ADC_STCONV_bm; //Start Conversion
+	
+	
+	}
+	
+		
+}
+
+
+ISR(TCB0_INT_vect) {
+    // Check the edge type of the interrupt
+    if (TCB0.INTFLAGS & TCB_CAPT_bm) {
+        // High edge
+        led0_state = true;
+    } else {
+        // Low edge
+        led0_state = false;
+    }
+    
+    // Set the state of LED1 based on the current edge
+    if (led0_state) {
+       PORTD.OUTCLR = PIN0_bm; //PIN0 is on
+
+    } else {
+        PORTD.OUT = PIN0_bm; //PIN0 is off
+
+    }
+}
+
+ISR(TCB1_INT_vect) {
+    // Check the edge type of the interrupt
+    if (TCB1.INTFLAGS & TCB_CAPT_bm) {
+        // High edge
+        led1_state = true;
+    } else {
+        // Low edge
+        led1_state = false;
+    }
+    
+    // Set the state of LED2 based on the current edge
+    if (led1_state) {
+        PORTD.OUTCLR = PIN1_bm; //PIN1 is on
+    } else {
+        PORTD.OUT = PIN1_bm; //PIN1 is off
+    }
+}
+
+
+	
+
+
+
+ISR(ADC0_WCOMP_vect){
+int intflags = ADC0.INTFLAGS;
+ADC0.INTFLAGS = intflags;
+ 
+ TCB0.CTRLB &= ~TCB_CCMPEN_bm; // Clear the TCB0_CCMPEN_bm bit to disable TCB0 PWM output
+ TCB1.CTRLB &= ~TCB_CCMPEN_bm; // Clear the TCB1_CCMPEN_bm bit to disable TCB0 PWM output
+ PORTD.OUT = PIN0_bm; //PIN0 is off
+ PORTD.OUT = PIN1_bm; //PIN1 is off
+ 
+ PORTD.OUTCLR = PIN2_bm; //PIN2 is on
+
+
+ 
+ 
+ 
+ 
+}
+
+ISR(PORTA_PORT_vect)
+{
+    if (PORTF.INTFLAGS & (1 << SWITCH_PIN)) // Check if the switch pin triggered the interrupt
+    {
+        switch_count++; // Increment the switch count
+        
+        if (switch_count == 1) // Check if this is the first click
+        {
+            TCB0.CTRLA = TCB_ENABLE_bm; // Enable TCB0
+            TCB1.CTRLA = TCB_ENABLE_bm; // Enable TCB1
+            ADC0.CTRLA |= ADC_ENABLE_bm; //Enable ADC
+        }
+        else if (switch_count == 2) // Check if this is the second click
+        {
+             PORTD.OUT = PIN2_bm; //PIN2 is off
+			 TCB0.CCMP = F_CPU * 0.001; // Set PWM period to 1ms (assuming F_CPU is the CPU frequency in Hz)
+			 TCB0.CTRLA = TCB_ENABLE_bm; // Enable TCB0
+			 TCB0.CTRLB = TCB_CNTMODE_PWM8_gc | TCB_CCMPEN_bm; // Set up TCB0 for PWM generation with 8-bit resolution
+			 TCB0.CCMPH = TCB0.CCMP / 2; // Set duty cycle to 50%
+			 PORTD.DIR = PIN0_bm; //PIN0 is output
+			 TCB0.INTCTRL = TCB_CAPT_bm;
+			 TCB1.CTRLA = TCB_ENABLE_bm; // Enable TCB1
+			 
+			 
+			 
+        }
+		else if (switch_count == 3)
+		TCB0.CTRLB &= ~TCB_CCMPEN_bm; // Clear the TCB0_CCMPEN_bm bit to disable TCB0 PWM output
+        TCB1.CTRLB &= ~TCB_CCMPEN_bm; // Clear the TCB1_CCMPEN_bm bit to disable TCB0 PWM output
+        PORTD.OUT = PIN0_bm; //PIN0 is off
+        PORTD.OUT = PIN1_bm; //PIN1 is off
+		
+		break;
+        
+        PORTF.INTFLAGS = (1 << SWITCH_PIN); // Clear the interrupt flag
+    }
+}

@@ -1,0 +1,109 @@
+#include <avr/io.h>
+#include <util/delay.h>
+#include <avr/interrupt.h>
+#define ped 10
+
+int x,y=0;
+int s=0;
+
+
+int main(){
+	while(s<8){
+PORTD.DIR |= PIN1_bm; //PIN is output
+PORTD.OUTCLR= PIN1_bm; //LED is on
+//initialize the ADC for Free-Running mode
+ADC0.CTRLA |= ADC_RESSEL_10BIT_gc; //10-bit resolution
+ADC0.CTRLA |= ADC_FREERUN_bm; //Free-Running mode enabled
+ADC0.CTRLA |= ADC_ENABLE_bm; //Enable ADC
+ADC0.MUXPOS |= ADC_MUXPOS_AIN7_gc; //The bit //Enable Debug Mode
+ADC0.DBGCTRL |= ADC_DBGRUN_bm; //Window Comparator Mode
+ADC0.WINLT |= 10; //Set threshold
+ADC0.INTCTRL |= ADC_WCMP_bm; //Enable Interrupts for WCM
+ADC0.CTRLE |= ADC_WINCM0_bm; //Interrupt when RESULT < WINLT
+sei();
+ADC0.COMMAND |= ADC_STCONV_bm; //Start Conversion
+_delay_ms(3);
+ADC0.CTRLA |= 0;
+ADC0.COMMAND |= ADC_STCONV_bm; //Start Conversion
+_delay_ms(2);
+ADC0.CTRLA |= ADC_FREERUN_bm; //Free-Running mode enabled
+ADC0.COMMAND |= ADC_STCONV_bm; //Start Conversion
+_delay_ms(3);
+
+
+
+	
+if(x == 1){
+	PORTD.DIR |= PIN0_bm; //PIN is output
+    PORTD.OUTCLR= PIN0_bm; //LED is on
+//(σελ 219, 224, 205) 16-bit counter high and low
+TCA0.SINGLE.CNT = 0; //clear counter
+//Normal Mode (TCA_SINGLE_WGMODE_NORMAL_gc σελ 207)
+TCA0.SINGLE.CTRLB = 0;
+//When CMP0 reaches this value -> interrupt //CLOCK FREQUENCY/1024
+TCA0.SINGLE.CMP0 = ped;
+TCA0.SINGLE.CTRLA = 0x7<<1; //TCA_SINGLE_CLKSEL_DIV1024_gc σελ 224
+TCA0.SINGLE.CTRLA |=1;//Enable
+TCA0.SINGLE.INTCTRL = TCA_SINGLE_CMP0_bm; //Interrupt Enable (=0x10)
+sei(); //begin accepting interrupt signals
+while (y==2) {
+
+
+PORTD.OUT |= PIN0_bm; //LED is off
+s = s+1;
+cli();
+}
+}
+
+if(x == 3){
+	PORTD.DIR |= PIN2_bm; //PIN is output
+    PORTD.OUTCLR= PIN2_bm; //LED is on
+//(σελ 219, 224, 205) 16-bit counter high and low
+TCA0.SINGLE.CNT = 0; //clear counter
+//Normal Mode (TCA_SINGLE_WGMODE_NORMAL_gc σελ 207)
+TCA0.SINGLE.CTRLB = 0;
+//When CMP0 reaches this value -> interrupt //CLOCK FREQUENCY/1024
+TCA0.SINGLE.CMP1 = ped;
+TCA0.SINGLE.CTRLA = 0x7<<1; //TCA_SINGLE_CLKSEL_DIV1024_gc σελ 224
+TCA0.SINGLE.CTRLA |=1;//Enable
+TCA0.SINGLE.INTCTRL = TCA_SINGLE_CMP1_bm; //Interrupt Enable (=0x10)
+sei(); //begin accepting interrupt signals
+while (y==4) {
+
+
+PORTD.OUT |= PIN2_bm; //LED is off
+s = s+1;
+cli();
+}
+}
+
+if (s=8){break;}
+}
+	}
+
+
+
+ISR(ADC0_WCOMP_vect){
+ int intflags = ADC0.INTFLAGS;
+ ADC0.INTFLAGS = intflags;
+ PORTD.OUT |= PIN1_bm; //LED is off
+if(){
+	x = 3;
+}else x=1;
+}
+
+ISR(TCA0_CMP0_vect){
+TCA0.SINGLE.CTRLA = 0; //Disable
+//clear flag
+int intflags = TCA0.SINGLE.INTFLAGS;
+TCA0.SINGLE.INTFLAGS=intflags;
+y=2;
+}
+
+ISR(TCA0_CMP1_vect){
+TCA0.SINGLE.CTRLA = 0; //Disable
+//clear flag
+int intflags = TCA0.SINGLE.INTFLAGS;
+TCA0.SINGLE.INTFLAGS=intflags;
+y=4;
+}

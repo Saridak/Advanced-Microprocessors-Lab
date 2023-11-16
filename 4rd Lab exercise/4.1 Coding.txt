@@ -1,0 +1,94 @@
+----------------------------------------------1o----------------------------------------------
+
+ #include <avr/io.h>
+#include <util/delay.h>
+#include <avr/interrupt.h>
+
+#define ped 10
+#define SW5_PIN  PIN5_bm
+#define SW6_PIN  PIN6_bm
+#define MAX_TRIES 3
+int x=0;
+int numTries = 0;
+
+
+
+
+int main() {
+
+
+	while (1) {
+		 PORTF.DIRCLR = SW5_PIN | SW6_PIN;
+		 PORTF.PIN5CTRL = PORT_PULLUPEN_bm | PORT_ISC_BOTHEDGES_gc;
+		 PORTF.PIN6CTRL = PORT_PULLUPEN_bm | PORT_ISC_BOTHEDGES_gc;
+		 sei();
+		 
+		
+			
+			 PORTD.DIR |= 0b00000010; //PIN is output
+			 PORTD.OUTCLR= PIN1_bm; //LED1 is on
+			 //(σελ 219, 224, 205) 16-bit counter high and low
+			 TCA0.SINGLE.CNT = 0; //clear counter
+			 //Normal Mode (TCA_SINGLE_WGMODE_NORMAL_gc σελ 207)
+			 TCA0.SINGLE.CTRLB = 0;
+			 //When CMP0 reaches this value -> interrupt //CLOCK FREQUENCY/1024
+			 TCA0.SINGLE.CMP0 = ped;
+			 TCA0.SINGLE.CTRLA = 0x7<<1; //TCA_SINGLE_CLKSEL_DIV1024_gc σελ 224
+			 //TCA0.SINGLE.CTRLA |=1;//Enable
+			 TCA0.SINGLE.INTCTRL = TCA_SINGLE_CMP0_bm; //Interrupt Enable (=0x10)
+			 sei(); //begin accepting interrupt signals
+			 if (numTries >= MAX_TRIES)
+			 {
+				PORTD.OUT |= PIN1_bm; //LED1 is off 
+			 }
+			 
+			
+		 
+		 }
+	 return 0;
+	 }
+		
+		 
+	
+
+	
+
+ISR(TCA0_CMP0_vect){
+	TCA0.SINGLE.CTRLA = 0; //Disable
+	//clear flag
+	int intflags = TCA0.SINGLE.INTFLAGS;
+	TCA0.SINGLE.INTFLAGS=intflags;
+	PORTD.OUT |= PIN1_bm; //LED1 is off 
+	
+}
+ISR(PORTF_PORT_vect){
+	int intflags = PORTF.INTFLAGS;
+	
+	if (((PORTF.INTFLAGS == 0b00100000) == 1) && (x==0))
+	{
+		x=1;
+	}
+	
+	else if (((PORTF.INTFLAGS == 0b01000000) == 1) && (x==1))
+	{
+		x=2;
+	}
+	else if (((PORTF.INTFLAGS == 0b00100000) == 1) && (x==2))
+	{
+		x=3;
+	}
+	else if (((PORTF.INTFLAGS == 0b01000000) == 1) && (x==3))
+	{
+		
+		TCA0.SINGLE.CTRLA |=1;//Enable
+	}
+	else{ numTries++;
+	  x=0;
+	}
+	
+	int z = PORTF.INTFLAGS;
+	PORTF.INTFLAGS=z;
+
+	
+}
+ 

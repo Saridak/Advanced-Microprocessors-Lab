@@ -1,0 +1,56 @@
+#include <avr/io.h>
+#include <util/delay.h>
+#include <avr/interrupt.h>
+
+int x=0; //logic flag
+#define T1 20
+#define T2 20
+#define T3 20
+
+int main() {
+	PORTD.DIR |= PIN1_bm; //PIN1 is output tram
+	PORTD.DIR |= PIN0_bm; //PIN0 is output pezwn
+	PORTD.DIR |= PIN2_bm; //PIN2 is output megalou dromou
+	
+	PORTD.OUTCLR = PIN2_bm; //arxika  dromou ON
+	PORTD.OUT |=PIN0_bm; //pezwn OFF
+		
+	while(1){
+		//PORTD.OUTCLR = PIN2_bm; //arxika  dromou ON
+		//PORTD.OUT |=PIN0_bm; //pezwn OFF
+		
+		PORTF.PIN5CTRL |= PORT_PULLUPEN_bm | PORT_ISC_BOTHEDGES_gc;
+		sei(); //energopoihsh interrupts
+		
+	        
+		
+	}
+
+}
+ISR(PORTF_PORT_vect){
+	//clear the interrupt flag
+	
+	TCA0.SINGLE.CNT = 0; //clear counter
+	//Normal Mode
+	TCA0.SINGLE.CTRLB = 0;
+		
+	TCA0.SINGLE.CMP0 = T2; //gia na einai gia T2
+	TCA0.SINGLE.CTRLA = 0x7<<1; //TCA_SINGLE_CLKSEL_DIV1024_gc σελ 224
+	TCA0.SINGLE.CTRLA |=1;//Enable
+	TCA0.SINGLE.INTCTRL |= TCA_SINGLE_CMP0_bm; //Interrupt Enable (=0x10)
+	sei();
+		
+	PORTD.OUT = PIN2_bm; //  dromou OFF
+	PORTD.OUTCLR |=PIN0_bm; //pezwn ON
+	
+	
+}
+ISR(TCA0_CMP0_vect){
+	TCA0.SINGLE.CTRLA = 0; //Disable
+	//clear flag
+	int intflags = TCA0.SINGLE.INTFLAGS;
+	TCA0.SINGLE.INTFLAGS=intflags;
+	PORTD.OUTCLR = PIN2_bm; //arxika  dromou ON
+	PORTD.OUT |=PIN0_bm; //pezwn OFF
+	
+}
